@@ -42,8 +42,27 @@
 
         /* --- 클리커 게임 화면 --- */
         #clicker-game-screen { justify-content: space-between; position: relative; }
-        #coin-button { width: 150px; height: 150px; border-radius: 50%; background: linear-gradient(145deg, #f1c40f, #f39c12); border: 5px solid #d35400; font-size: 4rem; display: flex; justify-content: center; align-items: center; text-shadow: 2px 2px 3px rgba(0,0,0,0.3); box-shadow: 0 10px 0 #8e44ad, inset 0 0 20px rgba(255,255,255,0.5); transition: transform 0.05s ease; margin: 15px 0; flex-shrink: 0; touch-action: manipulation; }
+        /* [수정] 코인 버튼을 감싸는 영역 추가 */
+        #coin-area { position: relative; margin: 15px 0; flex-shrink: 0; }
+        #coin-button { width: 150px; height: 150px; border-radius: 50%; background: linear-gradient(145deg, #f1c40f, #f39c12); border: 5px solid #d35400; font-size: 4rem; display: flex; justify-content: center; align-items: center; text-shadow: 2px 2px 3px rgba(0,0,0,0.3); box-shadow: 0 10px 0 #8e44ad, inset 0 0 20px rgba(255,255,255,0.5); transition: transform 0.05s ease; touch-action: manipulation; }
         #coin-button:active { transform: scale(0.95); }
+        /* [수정] 클릭 시 떠오르는 텍스트 스타일 추가 */
+        .floating-text {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #f1c40f;
+            text-shadow: 1px 1px 2px #000;
+            pointer-events: none;
+            animation: float-up 1s ease-out forwards;
+        }
+        @keyframes float-up {
+            from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            to { opacity: 0; transform: translate(-50%, -150%) scale(1.5); }
+        }
+
         #upgrades-area { width: 100%; text-align: center; }
         #upgrades-area h3 { margin-top: 0; }
         #upgrades-list { width: 100%; display: flex; flex-direction: column; gap: 10px; }
@@ -97,7 +116,10 @@
 
         <div id="clicker-game-screen" class="screen">
             <div class="back-button" onclick="showScreen('main-menu-screen')">🏠</div>
-            <button id="coin-button">$</button>
+            <!-- [수정] 코인 버튼을 coin-area로 감싸기 -->
+            <div id="coin-area">
+                <button id="coin-button">$</button>
+            </div>
             <div id="upgrades-area">
                 <h3>불로소득 사업</h3>
                 <div id="upgrades-list"></div>
@@ -156,7 +178,6 @@
     const screens = document.querySelectorAll('.screen');
     const walletDisplay = document.getElementById('wallet-display');
     let playerMoney = 0;
-    // [수정] 데이터 저장을 위한 키 이름 변경
     const SAVE_KEY = 'gamblersLifeSaveData_v2'; 
 
     // --- 게임 저장/불러오기 로직 ---
@@ -165,20 +186,17 @@
             money: playerMoney,
             earnerLevels: clicker.earners.map(e => e.level)
         };
-        // [수정] 변경된 키로 저장
         localStorage.setItem(SAVE_KEY, JSON.stringify(saveData));
     }
 
     function loadGame() {
-        // [수정] 변경된 키로 불러오기
         const savedData = localStorage.getItem(SAVE_KEY);
         if (savedData) {
             const data = JSON.parse(savedData);
             playerMoney = data.money || 0;
             if (data.earnerLevels && data.earnerLevels.length === clicker.earners.length) {
                 clicker.earners.forEach((earner, index) => {
-                    // [수정] 불러온 레벨이 50을 넘지 않도록 안전장치 추가
-                    earner.level = Math.min(data.earnerLevels[index] || 0, 50);
+                    earner.level = Math.min(data.earnerLevels[index] || 0, clicker.MAX_LEVEL);
                 });
             }
         }
@@ -220,13 +238,14 @@
     document.getElementById('goto-clicker-btn').addEventListener('click', () => showScreen('clicker-game-screen'));
     document.getElementById('goto-blackjack-btn').addEventListener('click', () => showScreen('blackjack-game-screen'));
 
-    // --- 클리커 게임 로직 (가성비 밸런스 재설계) ---
+    // --- 클리커 게임 로직 ---
     const clicker = {
         coinButton: document.getElementById('coin-button'),
+        coinArea: document.getElementById('coin-area'), // [수정] 코인 영역 DOM 요소 추가
         upgradesListEl: document.getElementById('upgrades-list'),
         automationInterval: null,
         clickValue: 1,
-        MAX_LEVEL: 50, // [수정] 최대 레벨을 상수로 정의
+        MAX_LEVEL: 50,
         earners: [
             { id: 'performer', name: '뒷골목 동전줍기', level: 0, baseCost: 15, mps: 1 },
             { id: 'card_shark', name: '소규모 사기', level: 0, baseCost: 100, mps: 5 },
@@ -236,8 +255,32 @@
             { id: 'megacorp', name: '글로벌 대기업', level: 0, baseCost: 2000000000, mps: 110000000 },
         ],
         init() {
-            this.coinButton.addEventListener('click', () => { playerMoney += this.clickValue; updateWalletUI(); this.updateUpgradesUI(); saveGame(); });
+            // [수정] 클릭 이벤트 리스너에 떠오르는 텍스트 기능 추가
+            this.coinButton.addEventListener('click', () => {
+                playerMoney += this.clickValue;
+                this.showFloatingText(`+$${this.clickValue}`);
+                updateWalletUI();
+                this.updateUpgradesUI();
+                saveGame();
+            });
             this.renderUpgrades();
+        },
+        // [수정] 떠오르는 텍스트를 생성하고 제거하는 함수
+        showFloatingText(text) {
+            const floatingText = document.createElement('div');
+            floatingText.className = 'floating-text';
+            floatingText.textContent = text;
+            
+            // 텍스트가 매번 같은 위치에 뜨지 않도록 약간의 랜덤성 부여
+            const randomX = Math.random() * 40 - 20; // -20% ~ +20%
+            floatingText.style.transform = `translate(calc(-50% + ${randomX}px), -50%)`;
+
+            this.coinArea.appendChild(floatingText);
+
+            // 애니메이션 시간(1초)이 지나면 요소 제거
+            setTimeout(() => {
+                floatingText.remove();
+            }, 1000);
         },
         startAutomation() { if (!this.automationInterval) this.automationInterval = setInterval(() => this.runAutomation(), 200); },
         stopAutomation() { clearInterval(this.automationInterval); this.automationInterval = null; },
@@ -247,10 +290,9 @@
             }, 0);
             if (totalMps > 0) { playerMoney += totalMps / 5; updateWalletUI(); this.updateUpgradesUI(); saveGame(); }
         },
-        // [수정] 구매 로직에 최대 레벨 체크 추가
         buyEarner(earnerId) { 
             const earner = this.earners.find(e => e.id === earnerId); 
-            if (earner.level >= this.MAX_LEVEL) return; // 최대 레벨 도달 시 구매 방지
+            if (earner.level >= this.MAX_LEVEL) return;
             const cost = this.getEarnerCost(earner); 
             if (playerMoney >= cost) { 
                 playerMoney -= cost; 
@@ -260,7 +302,6 @@
             } 
         },
         getEarnerCost(earner) { return Math.floor(earner.baseCost * Math.pow(1.15, earner.level)); },
-        // [수정] UI 렌더링 로직에 최대 레벨 표시 기능 추가
         renderUpgrades() {
             this.upgradesListEl.innerHTML = '';
             this.earners.forEach(earner => {
@@ -269,7 +310,6 @@
                 button.className = 'upgrade-button';
 
                 let costHtml = '';
-                // 최대 레벨에 도달했는지 확인
                 if (earner.level >= this.MAX_LEVEL) {
                     button.disabled = true;
                     costHtml = `<div class="upgrade-cost">MAX</div>`;
@@ -319,7 +359,6 @@
     
     // --- 게임 초기화 ---
     window.onload = () => {
-        // [수정] 이전 버전의 저장 데이터를 삭제하여 모든 사용자를 초기화
         localStorage.removeItem('gamblersLifeSaveData');
 
         loadGame();
