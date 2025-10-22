@@ -17,6 +17,10 @@
             overflow: hidden; user-select: none;
             touch-action: none;
         }
+        /* [추가] 모든 요소에 터치 하이라이트 제거 (iOS) */
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
         #app-container {
             width: 100%; max-width: 540px;
             height: 100%; margin: 0 auto; display: flex; flex-direction: column;
@@ -27,9 +31,9 @@
         .screen { display: none; flex-direction: column; flex-grow: 1; padding: 15px; box-sizing: border-box; justify-content: flex-start; align-items: center; overflow-y: auto; }
         .screen.active { display: flex; }
         .top-bar { padding: 15px; background-color: rgba(0,0,0,0.2); text-align: center; font-size: 1.5rem; font-weight: bold; flex-shrink: 0; }
-        .main-button { width: 80%; padding: 20px 0; font-size: 1.8rem; font-weight: bold; border: none; border-radius: 12px; cursor: pointer; margin: 15px 0; color: var(--text-light); box-shadow: 0 5px 0 #000, 0 8px 10px rgba(0,0,0,0.3); transition: all 0.1s ease-out; }
+        .main-button { width: 80%; padding: 20px 0; font-size: 1.8rem; font-weight: bold; border: none; border-radius: 12px; cursor: pointer; margin: 15px 0; color: var(--text-light); box-shadow: 0 5px 0 #000, 0 8px 10px rgba(0,0,0,0.3); transition: all 0.1s ease-out; touch-action: manipulation; }
         .main-button:active { transform: translateY(3px); box-shadow: 0 2px 0 #000; }
-        .back-button { position: absolute; top: 15px; left: 15px; z-index: 100; font-size: 1.5rem; padding: 5px 10px; background: rgba(0,0,0,0.3); border-radius: 5px; cursor: pointer; }
+        .back-button { position: absolute; top: 15px; left: 15px; z-index: 100; font-size: 1.5rem; padding: 5px 10px; background: rgba(0,0,0,0.3); border-radius: 5px; cursor: pointer; touch-action: manipulation; }
 
         /* --- 메인 메뉴 화면 --- */
         #main-menu-screen { justify-content: center; }
@@ -39,12 +43,12 @@
 
         /* --- 클리커 게임 화면 --- */
         #clicker-game-screen { justify-content: space-between; position: relative; }
-        #coin-button { width: 150px; height: 150px; border-radius: 50%; background: linear-gradient(145deg, #f1c40f, #f39c12); border: 5px solid #d35400; font-size: 4rem; display: flex; justify-content: center; align-items: center; text-shadow: 2px 2px 3px rgba(0,0,0,0.3); box-shadow: 0 10px 0 #8e44ad, inset 0 0 20px rgba(255,255,255,0.5); transition: transform 0.05s ease; margin: 15px 0; flex-shrink: 0; }
+        #coin-button { width: 150px; height: 150px; border-radius: 50%; background: linear-gradient(145deg, #f1c40f, #f39c12); border: 5px solid #d35400; font-size: 4rem; display: flex; justify-content: center; align-items: center; text-shadow: 2px 2px 3px rgba(0,0,0,0.3); box-shadow: 0 10px 0 #8e44ad, inset 0 0 20px rgba(255,255,255,0.5); transition: transform 0.05s ease; margin: 15px 0; flex-shrink: 0; touch-action: manipulation; }
         #coin-button:active { transform: scale(0.95); }
         #upgrades-area { width: 100%; text-align: center; }
         #upgrades-area h3 { margin-top: 0; }
         #upgrades-list { width: 100%; display: flex; flex-direction: column; gap: 10px; }
-        .upgrade-button { width: 100%; background: var(--primary-color); padding: 10px; border-radius: 8px; border: none; color: white; box-shadow: 0 4px 0 #2980b9; display: flex; justify-content: space-between; align-items: center; }
+        .upgrade-button { width: 100%; background: var(--primary-color); padding: 10px; border-radius: 8px; border: none; color: white; box-shadow: 0 4px 0 #2980b9; display: flex; justify-content: space-between; align-items: center; touch-action: manipulation; }
         .upgrade-button:disabled { background: #7f8c8d; box-shadow: 0 4px 0 #34495e;}
         .upgrade-info { text-align: left; }
         .upgrade-name { font-weight: bold; font-size: 1rem; }
@@ -70,8 +74,8 @@
         #betting-controls { display: flex; flex-direction: column; gap: 5px; }
         .control-row { display: flex; align-items: center; gap: 5px; }
         .chip-row { display: flex; gap: 5px; }
-        #blackjack-game-screen .chip { width: 50px; height: 50px; border-radius: 50%; border: 2px solid #fff; font-size: 0.8rem; font-weight: bold; flex-shrink: 0; }
-        #blackjack-game-screen .btn { padding: 0 15px; font-size: 1.1rem; height: 50px; }
+        #blackjack-game-screen .chip { width: 50px; height: 50px; border-radius: 50%; border: 2px solid #fff; font-size: 0.8rem; font-weight: bold; flex-shrink: 0; touch-action: manipulation; }
+        #blackjack-game-screen .btn { padding: 0 15px; font-size: 1.1rem; height: 50px; touch-action: manipulation; }
         #chip1 { background: #7f8c8d; } #chip10 { background: #2980b9; } #chip100 { background: #27ae60; }
         #chip1k { background: #d35400; } #chip10k { background: #8e44ad; } #chip100k { background: #c0392b; }
         .high-value { border-color: #f1c40f; color: #f1c40f; }
@@ -212,14 +216,13 @@
     document.getElementById('goto-clicker-btn').addEventListener('click', () => showScreen('clicker-game-screen'));
     document.getElementById('goto-blackjack-btn').addEventListener('click', () => showScreen('blackjack-game-screen'));
 
-    // --- 클리커 게임 로직 (밸런스 재설계) ---
+    // --- 클리커 게임 로직 (가성비 밸런스) ---
     const clicker = {
         coinButton: document.getElementById('coin-button'),
         upgradesListEl: document.getElementById('upgrades-list'),
         automationInterval: null,
         clickValue: 1,
         earners: [
-            // [수정] 비용 및 수익 밸런스 전면 재조정
             { id: 'performer', name: '뒷골목 동전줍기', level: 0, baseCost: 15, mps: 1 },
             { id: 'card_shark', name: '소규모 사기', level: 0, baseCost: 100, mps: 8 },
             { id: 'pawn_shop', name: '전당포 운영', level: 0, baseCost: 1100, mps: 100 },
@@ -235,19 +238,17 @@
         stopAutomation() { clearInterval(this.automationInterval); this.automationInterval = null; },
         runAutomation() {
             const totalMps = this.earners.reduce((total, earner) => {
-                const earnerMps = earner.level * earner.mps;
-                return total + earnerMps;
+                return total + (earner.level * earner.mps);
             }, 0);
             if (totalMps > 0) { playerMoney += totalMps / 5; updateWalletUI(); this.updateUpgradesUI(); saveGame(); }
         },
         buyEarner(earnerId) { const earner = this.earners.find(e => e.id === earnerId); const cost = this.getEarnerCost(earner); if (playerMoney >= cost) { playerMoney -= cost; earner.level++; this.updateUpgradesUI(); saveGame(); } },
-        getEarnerCost(earner) { return Math.floor(earner.baseCost * Math.pow(1.15, earner.level)); }, // 비용 증가율은 유지
+        getEarnerCost(earner) { return Math.floor(earner.baseCost * Math.pow(1.15, earner.level)); },
         renderUpgrades() {
             this.upgradesListEl.innerHTML = '';
             this.earners.forEach(earner => {
                 const cost = this.getEarnerCost(earner);
                 const currentMps = earner.level * earner.mps;
-
                 const button = document.createElement('button');
                 button.className = 'upgrade-button';
                 button.disabled = playerMoney < cost;
@@ -266,7 +267,6 @@
     
     // --- 블랙잭 게임 로직 ---
     const blackjack = {
-        // (이전 버전과 동일)
         dealerScoreEl: document.getElementById('dealer-score'), playerScoreEl: document.getElementById('player-score'), dealerCardsEl: document.getElementById('dealer-cards'), playerCardsEl: document.getElementById('player-cards'), messageEl: document.getElementById('message-area'), currentBetEl: document.getElementById('current-bet'),
         bettingControls: document.getElementById('betting-controls'), actionControls: document.getElementById('action-controls'), resultControls: document.getElementById('result-controls'),
         chips: document.querySelectorAll('#blackjack-game-screen .chip'), dealBtn: document.getElementById('deal-btn'), clearBtn: document.getElementById('clear-btn'), hitBtn: document.getElementById('hit-btn'), standBtn: document.getElementById('stand-btn'), nextRoundBtn: document.getElementById('next-round-btn'),
