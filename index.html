@@ -70,8 +70,9 @@
         #betting-controls { display: flex; flex-direction: column; gap: 5px; }
         .control-row { display: flex; align-items: center; gap: 5px; }
         .chip-row { display: flex; gap: 5px; }
-        #blackjack-game-screen .chip { width: 45px; height: 45px; border-radius: 50%; border: 2px solid #fff; font-size: 0.7rem; font-weight: bold; flex-shrink: 0; }
-        #blackjack-game-screen .btn { padding: 0 15px; font-size: 1rem; height: 45px; }
+        /* [수정] 버튼 크기 상향 */
+        #blackjack-game-screen .chip { width: 50px; height: 50px; border-radius: 50%; border: 2px solid #fff; font-size: 0.8rem; font-weight: bold; flex-shrink: 0; }
+        #blackjack-game-screen .btn { padding: 0 15px; font-size: 1.1rem; height: 50px; }
         #chip1 { background: #7f8c8d; } #chip10 { background: #2980b9; } #chip100 { background: #27ae60; }
         #chip1k { background: #d35400; } #chip10k { background: #8e44ad; } #chip100k { background: #c0392b; }
         .high-value { border-color: #f1c40f; color: #f1c40f; }
@@ -211,7 +212,7 @@
     document.getElementById('goto-clicker-btn').addEventListener('click', () => showScreen('clicker-game-screen'));
     document.getElementById('goto-blackjack-btn').addEventListener('click', () => showScreen('blackjack-game-screen'));
 
-    // --- 클리커 게임 로직 (밸런스 대폭 조정) ---
+    // --- 클리커 게임 로직 (밸런스 조정) ---
     const clicker = {
         coinButton: document.getElementById('coin-button'),
         upgradesListEl: document.getElementById('upgrades-list'),
