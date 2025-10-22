@@ -53,20 +53,6 @@
         .upgrade-name { font-weight: bold; font-size: 1rem; }
         .upgrade-mps { font-size: 0.8rem; opacity: 0.8; }
         .upgrade-cost { font-size: 0.9rem; font-weight: bold; padding: 8px 12px; background: rgba(0,0,0,0.2); border-radius: 5px;}
-        /* [추가] 클릭 애니메이션 스타일 */
-        @keyframes float-up {
-            from { opacity: 1; transform: translateY(0); }
-            to { opacity: 0; transform: translateY(-50px); }
-        }
-        .plus-one-animation {
-            position: absolute;
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: #f1c40f;
-            text-shadow: 1px 1px 2px #000;
-            pointer-events: none;
-            animation: float-up 1s ease-out forwards;
-        }
 
         /* --- 블랙잭 게임 화면 --- */
         #blackjack-game-screen { background-color: var(--felt-color); justify-content: space-between; position: relative;}
@@ -229,47 +215,24 @@
     document.getElementById('goto-clicker-btn').addEventListener('click', () => showScreen('clicker-game-screen'));
     document.getElementById('goto-blackjack-btn').addEventListener('click', () => showScreen('blackjack-game-screen'));
 
-    // --- 클리커 게임 로직 (수익 밸런스 재조정) ---
+    // --- 클리커 게임 로직 (가성비 밸런스 재설계) ---
     const clicker = {
         coinButton: document.getElementById('coin-button'),
         upgradesListEl: document.getElementById('upgrades-list'),
         automationInterval: null,
         clickValue: 1,
+        // [수정] 비용 및 수익 밸런스 전면 재조정
         earners: [
-            // [수정] 수익 밸런스 전면 재조정
             { id: 'performer', name: '뒷골목 동전줍기', level: 0, baseCost: 15, mps: 1 },
             { id: 'card_shark', name: '소규모 사기', level: 0, baseCost: 100, mps: 5 },
-            { id: 'pawn_shop', name: '전당포 운영', level: 0, baseCost: 1100, mps: 40 },
-            { id: 'race_betting', name: '경마장 개입', level: 0, baseCost: 12000, mps: 300 },
-            { id: 'offshore', name: '유령 회사', level: 0, baseCost: 1300000, mps: 18000 },
-            { id: 'megacorp', name: '글로벌 대기업', level: 0, baseCost: 200000000, mps: 2600000 },
+            { id: 'pawn_shop', name: '전당포 운영', level: 0, baseCost: 1200, mps: 60 },
+            { id: 'race_betting', name: '경마장 개입', level: 0, baseCost: 130000, mps: 7000 },
+            { id: 'offshore', name: '유령 회사', level: 0, baseCost: 14000000, mps: 750000 },
+            { id: 'megacorp', name: '글로벌 대기업', level: 0, baseCost: 2000000000, mps: 110000000 },
         ],
         init() {
-            this.coinButton.addEventListener('click', (e) => {
-                playerMoney += this.clickValue;
-                updateWalletUI();
-                this.updateUpgradesUI();
-                saveGame();
-                // [추가] 클릭 애니메이션 생성
-                this.createClickAnimation(e);
-            });
+            this.coinButton.addEventListener('click', () => { playerMoney += this.clickValue; updateWalletUI(); this.updateUpgradesUI(); saveGame(); });
             this.renderUpgrades();
-        },
-        createClickAnimation(event) {
-            const clickerScreen = document.getElementById('clicker-game-screen');
-            const animationEl = document.createElement('div');
-            animationEl.className = 'plus-one-animation';
-            animationEl.textContent = `+$${this.clickValue}`;
-            
-            // 클릭 위치에 애니메이션 생성
-            const rect = clickerScreen.getBoundingClientRect();
-            animationEl.style.left = `${event.clientX - rect.left - 15}px`;
-            animationEl.style.top = `${event.clientY - rect.top - 30}px`;
-
-            clickerScreen.appendChild(animationEl);
-            setTimeout(() => {
-                animationEl.remove();
-            }, 1000); // 1초 후 DOM에서 제거
         },
         startAutomation() { if (!this.automationInterval) this.automationInterval = setInterval(() => this.runAutomation(), 200); },
         stopAutomation() { clearInterval(this.automationInterval); this.automationInterval = null; },
@@ -329,13 +292,6 @@
     
     // --- 게임 초기화 ---
     window.onload = () => {
-        // [추가] 줌 방지 이벤트 리스너
-        ['.main-button', '.back-button', '#coin-button', '.upgrade-button', '#blackjack-game-screen .chip', '#blackjack-game-screen .btn'].forEach(selector => {
-            document.querySelectorAll(selector).forEach(element => {
-                element.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
-            });
-        });
-
         loadGame();
         updateWalletUI();
         clicker.init();
