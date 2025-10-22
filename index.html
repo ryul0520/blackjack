@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>도박꾼의 삶</title>
+    <style>
+        :root {
+            --bg-dark: #2c3e50; --bg-light: #34495e; --primary-color: #3498db;
+            --accent-color-1: #e74c3c; --accent-color-2: #2ecc71; --text-light: #ecf0f1;
+            --felt-color: #007a52; --chip-black: #333;
+        }
+        html, body {
+            margin: 0; padding: 0; height: 100%; width: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg-dark); color: var(--text-light);
+            overflow: hidden; user-select: none;
+        }
+        #app-container {
+            width: 100%; max-width: 540px; /* 가로 비율 약간 넓게 조정 */
+            height: 100%; margin: 0 auto; display: flex; flex-direction: column;
+            background-color: var(--bg-light); box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        /* --- 공통 UI --- */
+        .screen { display: none; flex-direction: column; flex-grow: 1; padding: 20px; box-sizing: border-box; justify-content: flex-start; align-items: center; overflow-y: auto; }
+        .screen.active { display: flex; }
+        .top-bar { padding: 15px 20px; background-color: rgba(0,0,0,0.2); text-align: center; font-size: 1.5rem; font-weight: bold; flex-shrink: 0; }
+        .main-button { width: 80%; padding: 20px 0; font-size: 1.8rem; font-weight: bold; border: none; border-radius: 12px; cursor: pointer; margin: 15px 0; color: var(--text-light); box-shadow: 0 5px 0 #000, 0 8px 10px rgba(0,0,0,0.3); transition: all 0.1s ease-out; }
+        .main-button:active { transform: translateY(3px); box-shadow: 0 2px 0 #000; }
+        .back-button { position: absolute; top: 15px; left: 15px; z-index: 100; font-size: 1.5rem; padding: 5px 10px; background: rgba(0,0,0,0.3); border-radius: 5px; cursor: pointer; }
+
+        /* --- 메인 메뉴 화면 --- */
+        #main-menu-screen { justify-content: center; }
+        #main-menu-screen h1 { font-size: 3.5rem; text-shadow: 2px 2px 5px #000; margin-bottom: 40px; }
+        #goto-clicker-btn { background-color: var(--primary-color); }
+        #goto-blackjack-btn { background-color: var(--accent-color-1); }
+
+        /* --- 클리커 게임 화면 --- */
+        #clicker-game-screen { justify-content: space-between; position: relative; }
+        #coin-button { width: 180px; height: 180px; border-radius: 50%; background: linear-gradient(145deg, #f1c40f, #f39c12); border: 5px solid #d35400; font-size: 4rem; display: flex; justify-content: center; align-items: center; text-shadow: 2px 2px 3px rgba(0,0,0,0.3); box-shadow: 0 10px 0 #8e44ad, inset 0 0 20px rgba(255,255,255,0.5); transition: transform 0.05s ease; margin: 20px 0; flex-shrink: 0; }
+        #coin-button:active { transform: scale(0.95); }
+        #upgrades-area { width: 100%; text-align: center; }
+        #upgrades-area h3 { margin-top: 0; }
+        #upgrades-list { width: 100%; display: flex; flex-direction: column; gap: 10px; }
+        .upgrade-button { width: 100%; background: var(--primary-color); padding: 10px; border-radius: 8px; border: none; color: white; box-shadow: 0 4px 0 #2980b9; display: flex; justify-content: space-between; align-items: center; }
+        .upgrade-button:disabled { background: #7f8c8d; box-shadow: 0 4px 0 #34495e;}
+        .upgrade-info { text-align: left; }
+        .upgrade-name { font-weight: bold; font-size: 1.1rem; }
+        .upgrade-mps { font-size: 0.9rem; opacity: 0.8; }
+        .upgrade-cost { font-size: 1rem; font-weight: bold; padding: 8px 12px; background: rgba(0,0,0,0.2); border-radius: 5px;}
+
+        /* --- 블랙잭 게임 화면 --- */
+        #blackjack-game-screen { background-color: var(--felt-color); justify-content: space-between; position: relative;}
+        #blackjack-game-screen .hand-area { min-height: 140px; width: 100%; position: relative; display: flex; flex-direction: column; justify-content: flex-end; padding-bottom: 10px; }
+        /* [수정] 딜러/플레이어 텍스트와 점수를 중앙 정렬하여 홈 버튼과 겹침 방지 */
+        #blackjack-game-screen .hand-area h2 { position: absolute; top: 5px; left: 50%; transform: translateX(-50%); margin: 0; opacity: 0.8; }
+        #blackjack-game-screen .score { position: absolute; top: 30px; left: 50%; transform: translateX(-50%); font-size: 1.2rem; background: rgba(0,0,0,0.4); padding: 2px 10px; border-radius: 5px; z-index: 10; }
+        #blackjack-game-screen .cards { display: flex; justify-content: center; align-items: center; margin-top: 60px; /* 텍스트와 카드 겹침 문제 해결 */ }
+        #blackjack-game-screen .card { width: 70px; height: 100px; background-color: #fff; border: 1px solid #ccc; border-radius: 8px; margin: 0 -20px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); display: flex; flex-direction: column; justify-content: space-between; font-size: 1.5rem; font-weight: bold; color: #000; position: relative; transition: transform 0.4s ease-out, opacity 0.4s ease-out; }
+        #blackjack-game-screen .card.deal-animation-start { opacity: 0; transform: translate(0, -200px) scale(0.5) rotate(180deg); }
+        #blackjack-game-screen .card.hidden { background-image: linear-gradient(135deg, #555 25%, #444 25%, #444 50%, #555 50%, #555 75%, #444 75%, #444 100%); background-size: 10px 10px; }
+        #blackjack-game-screen .card.red { color: var(--accent-color-1); }
+        #blackjack-game-screen .card .suit-top { position: absolute; top: 5px; left: 5px; font-size: 1rem; }
+        #blackjack-game-screen .card .suit-bottom { position: absolute; bottom: 5px; right: 5px; font-size: 1rem; transform: rotate(180deg); }
+        #blackjack-game-screen .card .value { text-align: center; font-size: 2.2rem; }
+        #blackjack-game-screen #message-area { font-size: 1.5rem; min-height: 35px; }
+        #blackjack-game-screen #bet-area { min-height: 40px; }
+        #blackjack-game-screen #current-bet { font-size: 1.5rem; }
+        #blackjack-game-screen .control-group { flex-wrap: wrap; }
+        #blackjack-game-screen .chip { width: 50px; height: 50px; border-radius: 50%; border: 3px solid #fff; font-size: 0.9rem; }
+        #blackjack-game-screen .btn { padding: 10px 15px; font-size: 1rem; }
+        #blackjack-game-screen .high-value { border-color: #ffd700; color: #ffd700; }
+        #chip300 { background: #9b59b6; } #chip500 { background: #e67e22; }
+        #chip1000 { background: linear-gradient(45deg, #434343, #000000); }
+    </style>
+</head>
+<body>
+    <div id="app-container">
+        <div class="top-bar">
+            <div id="wallet-display">돈: $0</div>
+        </div>
+
+        <div id="main-menu-screen" class="screen active">
+            <h1>도박꾼의 삶</h1>
+            <button id="goto-clicker-btn" class="main-button">자금 마련하기</button>
+            <button id="goto-blackjack-btn" class="main-button">블랙잭 한 판</button>
+        </div>
+
+        <div id="clicker-game-screen" class="screen">
+            <div class="back-button" onclick="showScreen('main-menu-screen')">🏠</div>
+            <button id="coin-button">$</button>
+            <div id="upgrades-area">
+                <h3>불로소득 사업</h3>
+                <div id="upgrades-list"></div>
+            </div>
+        </div>
+
+        <div id="blackjack-game-screen" class="screen">
+            <div class="back-button" onclick="showScreen('main-menu-screen')">🏠</div>
+            <div id="dealer-area" class="hand-area">
+                <h2>딜러</h2> <div id="dealer-score" class="score">0</div>
+                <div id="dealer-cards" class="cards"></div>
+            </div>
+            <div id="message-area">베팅을 하세요</div>
+            <div id="bet-area"><div id="current-bet">$0</div></div>
+            <div id="player-area" class="hand-area">
+                <h2>플레이어</h2> <div id="player-score" class="score">0</div>
+                <div id="player-cards" class="cards"></div>
+            </div>
+            <div id="controls-container" style="gap: 5px;">
+                <div id="betting-controls" class="control-group">
+                     <div class="chip-row">
+                        <button class="chip" data-value="10">$10</button> <button class="chip" data-value="25">$25</button> <button class="chip" data-value="100">$100</button>
+                    </div>
+                    <div class="chip-row">
+                        <button class="chip high-value" id="chip300" data-value="300">$300</button> <button class="chip high-value" id="chip500" data-value="500">$500</button> <button class="chip high-value" id="chip1000" data-value="1000">$1K</button>
+                    </div>
+                    <button class="btn" id="deal-btn">Deal</button> <button class="btn" id="clear-btn">Clear</button>
+                </div>
+                <div id="action-controls" class="control-group" style="display: none;">
+                    <button id="hit-btn" class="btn">Hit</button> <button id="stand-btn" class="btn">Stand</button>
+                </div>
+                <div id="result-controls" class="control-group" style="display: none;">
+                    <button id="next-round-btn" class="btn">Next Round</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // 1. 전역 DOM 요소 및 게임 상태
+    const screens = document.querySelectorAll('.screen');
+    const walletDisplay = document.getElementById('wallet-display');
+    let playerMoney = 0; // [수정] 초기 자금 0으로 변경
+
+    // 2. 화면 전환 로직
+    function showScreen(screenId) {
+        screens.forEach(screen => screen.classList.remove('active'));
+        document.getElementById(screenId).classList.add('active');
+        if (screenId === 'blackjack-game-screen' && blackjack.gameState !== 'betting') {
+            blackjack.nextRound(true);
+        }
+    }
+    function updateWalletUI() {
+        walletDisplay.textContent = `돈: $${playerMoney}`;
+    }
+
+    // --- 메인 메뉴 로직 ---
+    document.getElementById('goto-clicker-btn').addEventListener('click', () => showScreen('clicker-game-screen'));
+    document.getElementById('goto-blackjack-btn').addEventListener('click', () => showScreen('blackjack-game-screen'));
+
+    // --- 클리커 게임 로직 (확장) ---
+    const clicker = {
+        coinButton: document.getElementById('coin-button'),
+        upgradesListEl: document.getElementById('upgrades-list'),
+        earners: [
+            { id: 'performer', name: '거리의 악사', level: 0, baseCost: 10, mps: 1 },
+            { id: 'card_shark', name: '뒷골목 타짜', level: 0, baseCost: 150, mps: 8 },
+            { id: 'pawn_shop', name: '수상한 전당포', level: 0, baseCost: 1100, mps: 47 },
+            { id: 'race_betting', name: '불법 경마', level: 0, baseCost: 12000, mps: 260 },
+            { id: 'bar', name: '비밀 바', level: 0, baseCost: 130000, mps: 1400 },
+            { id: 'casino', name: '사설 카지노', level: 0, baseCost: 1400000, mps: 7800 },
+        ],
+        init() {
+            this.coinButton.addEventListener('click', () => { playerMoney++; updateWalletUI(); this.updateUpgradesUI(); });
+            setInterval(() => this.runAutomation(), 1000);
+            this.renderUpgrades();
+        },
+        runAutomation() {
+            const totalMps = this.earners.reduce((total, earner) => total + (earner.level * earner.mps), 0);
+            if (totalMps > 0) { playerMoney += totalMps; updateWalletUI(); this.updateUpgradesUI(); }
+        },
+        buyEarner(earnerId) {
+            const earner = this.earners.find(e => e.id === earnerId);
+            const cost = this.getEarnerCost(earner);
+            if (playerMoney >= cost) { playerMoney -= cost; earner.level++; this.updateUpgradesUI(); }
+        },
+        getEarnerCost(earner) { return Math.floor(earner.baseCost * Math.pow(1.15, earner.level)); },
+        renderUpgrades() {
+            this.upgradesListEl.innerHTML = '';
+            this.earners.forEach(earner => {
+                const cost = this.getEarnerCost(earner);
+                const button = document.createElement('button');
+                button.className = 'upgrade-button';
+                button.disabled = playerMoney < cost;
+                button.innerHTML = `
+                    <div class="upgrade-info">
+                        <span class="upgrade-name">${earner.name} Lv.${earner.level}</span>
+                        <span class="upgrade-mps">(초당 $${earner.level * earner.mps})</span>
+                    </div>
+                    <div class="upgrade-cost">구매: $${cost}</div>`;
+                button.onclick = () => this.buyEarner(earner.id);
+                this.upgradesListEl.appendChild(button);
+            });
+        },
+        updateUpgradesUI() { this.renderUpgrades(); }
+    };
+    
+    // --- 블랙잭 게임 로직 (고급 버전) ---
+    const blackjack = {
+        dealerScoreEl: document.getElementById('dealer-score'), playerScoreEl: document.getElementById('player-score'), dealerCardsEl: document.getElementById('dealer-cards'), playerCardsEl: document.getElementById('player-cards'), messageEl: document.getElementById('message-area'), currentBetEl: document.getElementById('current-bet'),
+        bettingControls: document.getElementById('betting-controls'), actionControls: document.getElementById('action-controls'), resultControls: document.getElementById('result-controls'),
+        chips: document.querySelectorAll('#blackjack-game-screen .chip'), dealBtn: document.getElementById('deal-btn'), clearBtn: document.getElementById('clear-btn'), hitBtn: document.getElementById('hit-btn'), standBtn: document.getElementById('stand-btn'), nextRoundBtn: document.getElementById('next-round-btn'),
+        SUITS: ['♥', '♦', '♣', '♠'], VALUES: ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'],
+        deck: [], playerHand: [], dealerHand: [], currentBet: 0, gameState: 'betting', isAnimating: false, dealerInterval: null,
+        init() { this.chips.forEach(c=>c.addEventListener('click', ()=>this.placeBet(parseInt(c.dataset.value)))); this.clearBtn.addEventListener('click', ()=>this.clearBet()); this.dealBtn.addEventListener('click', ()=>this.dealCards()); this.hitBtn.addEventListener('click', ()=>this.hit()); this.standBtn.addEventListener('click', ()=>this.stand()); this.nextRoundBtn.addEventListener('click', ()=>this.nextRound()); },
+        updateGameUI() { updateWalletUI(); this.currentBetEl.textContent = `$${this.currentBet}`; this.playerScoreEl.textContent = this.calculateScore(this.playerHand); this.dealerScoreEl.textContent = (this.gameState === 'playing' && this.dealerHand.length > 0) ? this.getCardScore(this.dealerHand[0]) : this.calculateScore(this.dealerHand); this.bettingControls.style.display = 'none'; this.actionControls.style.display = 'none'; this.resultControls.style.display = 'none'; if (this.gameState === 'betting') this.bettingControls.style.display = 'flex'; else if (this.gameState === 'playing') this.actionControls.style.display = 'flex'; else if (this.gameState === 'result') this.resultControls.style.display = 'flex'; if (this.gameState === 'betting') { this.dealBtn.disabled = this.currentBet === 0; this.chips.forEach(c => c.disabled = (parseInt(c.dataset.value) > playerMoney)); } if (this.gameState === 'result') { this.nextRoundBtn.textContent = (playerMoney === 0 && this.currentBet === 0) ? 'Restart Game' : 'Next Round'; } },
+        placeBet(amount) { if (this.gameState === 'betting' && playerMoney >= amount) { playerMoney -= amount; this.currentBet += amount; this.updateGameUI(); } },
+        clearBet() { if (this.gameState === 'betting') { playerMoney += this.currentBet; this.currentBet = 0; this.updateGameUI(); } },
+        dealCards() { if (this.currentBet === 0 || this.isAnimating) return; this.gameState = 'playing'; this.playerHand = []; this.dealerHand = []; this.playerCardsEl.innerHTML = ''; this.dealerCardsEl.innerHTML = ''; this.messageEl.textContent = ''; this.deck = []; for (let s of this.SUITS) for (let v of this.VALUES) this.deck.push({suit:s, value:v}); for (let i = this.deck.length - 1; i > 0; i--) { const j = Math.floor(Math.random()*(i+1)); [this.deck[i], this.deck[j]] = [this.deck[j], this.deck[i]]; } this.updateGameUI(); this.animateDealingSequence(); },
+        async animateDealingSequence() { this.isAnimating = true; try { await this.dealOneCard(this.playerHand, this.playerCardsEl, false); await this.dealOneCard(this.dealerHand, this.dealerCardsEl, false); await this.dealOneCard(this.playerHand, this.playerCardsEl, false); await this.dealOneCard(this.dealerHand, this.dealerCardsEl, true); if (this.calculateScore(this.playerHand) === 21) { this.stand(); } } finally { this.isAnimating = false; } },
+        async hit() { if (this.gameState !== 'playing' || this.isAnimating) return; this.isAnimating = true; await this.dealOneCard(this.playerHand, this.playerCardsEl, false); this.isAnimating = false; if (this.calculateScore(this.playerHand) > 21) { this.messageEl.textContent = '플레이어 버스트!'; this.stand(); } },
+        stand() { if (this.gameState !== 'playing' || this.isAnimating) return; this.gameState = 'result'; const hiddenCardEl = this.dealerCardsEl.querySelector('.card.hidden'); if (hiddenCardEl) { const card = this.dealerHand[1]; hiddenCardEl.classList.remove('hidden'); hiddenCardEl.innerHTML = `<span class="suit-top">${card.suit}</span><span class="value">${card.value}</span><span class="suit-bottom">${card.suit}</span>`; if (['♥', '♦'].includes(card.suit)) hiddenCardEl.classList.add('red'); } this.updateGameUI(); this.dealerInterval = setInterval(() => { if (this.calculateScore(this.dealerHand) < 17) { this.isAnimating = true; this.dealOneCard(this.dealerHand, this.dealerCardsEl, false).then(() => this.isAnimating = false); } else { clearInterval(this.dealerInterval); this.determineWinner(); } }, 1000); },
+        determineWinner() { const pScore = this.calculateScore(this.playerHand); const dScore = this.calculateScore(this.dealerHand); let msg = ''; if (pScore > 21) { msg = '딜러 승리!'; } else if (dScore > 21 || pScore > dScore) { if (pScore === 21 && this.playerHand.length === 2) { msg = '블랙잭! 플레이어 승리!'; playerMoney += Math.floor(this.currentBet + (this.currentBet * 1.5)); } else { msg = '플레이어 승리!'; playerMoney += this.currentBet * 2; } } else if (pScore < dScore) { msg = '딜러 승리!'; } else { msg = '무승부 (Push)!'; playerMoney += this.currentBet; } this.messageEl.textContent = msg; this.currentBet = 0; this.updateGameUI(); },
+        nextRound(forceReset = false) { if (this.isAnimating && !forceReset) return; clearInterval(this.dealerInterval); if (playerMoney === 0 && this.currentBet === 0) playerMoney = 5000; if (forceReset && this.currentBet > 0) { playerMoney += this.currentBet; this.currentBet = 0; } this.isAnimating = false; this.gameState = 'betting'; this.playerHand = []; this.dealerHand = []; this.playerCardsEl.innerHTML = ''; this.dealerCardsEl.innerHTML = ''; this.messageEl.textContent = '베팅을 하세요'; if (playerMoney < 10 && this.currentBet === 0) { this.messageEl.textContent = '자금이 부족합니다!'; } this.updateGameUI(); },
+        dealOneCard(hand, element, isHidden) { return new Promise(resolve => { setTimeout(() => { const card = this.deck.pop(); if (card) { hand.push(card); this.renderCard(card, element, isHidden); this.updateGameUI(); } resolve(); }, 300); }); },
+        renderCard(card, element, isHidden = false) { const cDiv = document.createElement('div'); cDiv.className = `card deal-animation-start ${['♥', '♦'].includes(card.suit) ? 'red' : ''}`; if (isHidden) { cDiv.classList.add('hidden'); cDiv.dataset.value = card.value; cDiv.dataset.suit = card.suit; } else { cDiv.innerHTML = `<span class="suit-top">${card.suit}</span><span class="value">${card.value}</span><span class="suit-bottom">${card.suit}</span>`; } element.appendChild(cDiv); setTimeout(() => cDiv.classList.remove('deal-animation-start'), 10); },
+        getCardScore(c) { if (c && ['J','Q','K'].includes(c.value)) return 10; if (c && c.value === 'A') return 11; return c ? parseInt(c.value) : 0; },
+        calculateScore(h) { let s=0, a=0; for(let c of h) { s+=this.getCardScore(c); if (c.value==='A') a++; } while(s>21&&a>0) { s-=10; a--; } return s; }
+    };
+    
+    // --- 게임 초기화 ---
+    window.onload = () => { updateWalletUI(); clicker.init(); blackjack.init(); blackjack.updateGameUI(); };
+</script>
+</body>
+</html>
