@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0">
     <title>도박꾼의 삶</title>
     <style>
         :root {
@@ -15,9 +15,10 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background-color: var(--bg-dark); color: var(--text-light);
             overflow: hidden; user-select: none;
+            touch-action: none;
         }
         #app-container {
-            width: 100%; max-width: 540px; /* 가로 비율 약간 넓게 조정 */
+            width: 100%; max-width: 540px;
             height: 100%; margin: 0 auto; display: flex; flex-direction: column;
             background-color: var(--bg-light); box-shadow: 0 0 20px rgba(0,0,0,0.5);
         }
@@ -53,10 +54,9 @@
         /* --- 블랙잭 게임 화면 --- */
         #blackjack-game-screen { background-color: var(--felt-color); justify-content: space-between; position: relative;}
         #blackjack-game-screen .hand-area { min-height: 140px; width: 100%; position: relative; display: flex; flex-direction: column; justify-content: flex-end; padding-bottom: 10px; }
-        /* [수정] 딜러/플레이어 텍스트와 점수를 중앙 정렬하여 홈 버튼과 겹침 방지 */
         #blackjack-game-screen .hand-area h2 { position: absolute; top: 5px; left: 50%; transform: translateX(-50%); margin: 0; opacity: 0.8; }
         #blackjack-game-screen .score { position: absolute; top: 30px; left: 50%; transform: translateX(-50%); font-size: 1.2rem; background: rgba(0,0,0,0.4); padding: 2px 10px; border-radius: 5px; z-index: 10; }
-        #blackjack-game-screen .cards { display: flex; justify-content: center; align-items: center; margin-top: 60px; /* 텍스트와 카드 겹침 문제 해결 */ }
+        #blackjack-game-screen .cards { display: flex; justify-content: center; align-items: center; margin-top: 60px; }
         #blackjack-game-screen .card { width: 70px; height: 100px; background-color: #fff; border: 1px solid #ccc; border-radius: 8px; margin: 0 -20px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); display: flex; flex-direction: column; justify-content: space-between; font-size: 1.5rem; font-weight: bold; color: #000; position: relative; transition: transform 0.4s ease-out, opacity 0.4s ease-out; }
         #blackjack-game-screen .card.deal-animation-start { opacity: 0; transform: translate(0, -200px) scale(0.5) rotate(180deg); }
         #blackjack-game-screen .card.hidden { background-image: linear-gradient(135deg, #555 25%, #444 25%, #444 50%, #555 50%, #555 75%, #444 75%, #444 100%); background-size: 10px 10px; }
@@ -132,7 +132,7 @@
     // 1. 전역 DOM 요소 및 게임 상태
     const screens = document.querySelectorAll('.screen');
     const walletDisplay = document.getElementById('wallet-display');
-    let playerMoney = 0; // [수정] 초기 자금 0으로 변경
+    let playerMoney = 0;
 
     // 2. 화면 전환 로직
     function showScreen(screenId) {
@@ -213,7 +213,7 @@
         async hit() { if (this.gameState !== 'playing' || this.isAnimating) return; this.isAnimating = true; await this.dealOneCard(this.playerHand, this.playerCardsEl, false); this.isAnimating = false; if (this.calculateScore(this.playerHand) > 21) { this.messageEl.textContent = '플레이어 버스트!'; this.stand(); } },
         stand() { if (this.gameState !== 'playing' || this.isAnimating) return; this.gameState = 'result'; const hiddenCardEl = this.dealerCardsEl.querySelector('.card.hidden'); if (hiddenCardEl) { const card = this.dealerHand[1]; hiddenCardEl.classList.remove('hidden'); hiddenCardEl.innerHTML = `<span class="suit-top">${card.suit}</span><span class="value">${card.value}</span><span class="suit-bottom">${card.suit}</span>`; if (['♥', '♦'].includes(card.suit)) hiddenCardEl.classList.add('red'); } this.updateGameUI(); this.dealerInterval = setInterval(() => { if (this.calculateScore(this.dealerHand) < 17) { this.isAnimating = true; this.dealOneCard(this.dealerHand, this.dealerCardsEl, false).then(() => this.isAnimating = false); } else { clearInterval(this.dealerInterval); this.determineWinner(); } }, 1000); },
         determineWinner() { const pScore = this.calculateScore(this.playerHand); const dScore = this.calculateScore(this.dealerHand); let msg = ''; if (pScore > 21) { msg = '딜러 승리!'; } else if (dScore > 21 || pScore > dScore) { if (pScore === 21 && this.playerHand.length === 2) { msg = '블랙잭! 플레이어 승리!'; playerMoney += Math.floor(this.currentBet + (this.currentBet * 1.5)); } else { msg = '플레이어 승리!'; playerMoney += this.currentBet * 2; } } else if (pScore < dScore) { msg = '딜러 승리!'; } else { msg = '무승부 (Push)!'; playerMoney += this.currentBet; } this.messageEl.textContent = msg; this.currentBet = 0; this.updateGameUI(); },
-        nextRound(forceReset = false) { if (this.isAnimating && !forceReset) return; clearInterval(this.dealerInterval); if (playerMoney === 0 && this.currentBet === 0) playerMoney = 5000; if (forceReset && this.currentBet > 0) { playerMoney += this.currentBet; this.currentBet = 0; } this.isAnimating = false; this.gameState = 'betting'; this.playerHand = []; this.dealerHand = []; this.playerCardsEl.innerHTML = ''; this.dealerCardsEl.innerHTML = ''; this.messageEl.textContent = '베팅을 하세요'; if (playerMoney < 10 && this.currentBet === 0) { this.messageEl.textContent = '자금이 부족합니다!'; } this.updateGameUI(); },
+        nextRound(forceReset = false) { if (this.isAnimating && !forceReset) return; clearInterval(this.dealerInterval); if (playerMoney === 0 && this.currentBet === 0) playerMoney = 0; if (forceReset && this.currentBet > 0) { playerMoney += this.currentBet; this.currentBet = 0; } this.isAnimating = false; this.gameState = 'betting'; this.playerHand = []; this.dealerHand = []; this.playerCardsEl.innerHTML = ''; this.dealerCardsEl.innerHTML = ''; this.messageEl.textContent = '베팅을 하세요'; if (playerMoney < 10 && this.currentBet === 0) { this.messageEl.textContent = '자금이 부족합니다!'; } this.updateGameUI(); },
         dealOneCard(hand, element, isHidden) { return new Promise(resolve => { setTimeout(() => { const card = this.deck.pop(); if (card) { hand.push(card); this.renderCard(card, element, isHidden); this.updateGameUI(); } resolve(); }, 300); }); },
         renderCard(card, element, isHidden = false) { const cDiv = document.createElement('div'); cDiv.className = `card deal-animation-start ${['♥', '♦'].includes(card.suit) ? 'red' : ''}`; if (isHidden) { cDiv.classList.add('hidden'); cDiv.dataset.value = card.value; cDiv.dataset.suit = card.suit; } else { cDiv.innerHTML = `<span class="suit-top">${card.suit}</span><span class="value">${card.value}</span><span class="suit-bottom">${card.suit}</span>`; } element.appendChild(cDiv); setTimeout(() => cDiv.classList.remove('deal-animation-start'), 10); },
         getCardScore(c) { if (c && ['J','Q','K'].includes(c.value)) return 10; if (c && c.value === 'A') return 11; return c ? parseInt(c.value) : 0; },
