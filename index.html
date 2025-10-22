@@ -134,12 +134,40 @@
     const walletDisplay = document.getElementById('wallet-display');
     let playerMoney = 0;
 
+    // --- [추가] 게임 저장/불러오기 로직 ---
+    function saveGame() {
+        const saveData = {
+            money: playerMoney,
+            earnerLevels: clicker.earners.map(e => e.level)
+        };
+        localStorage.setItem('gamblersLifeSaveData', JSON.stringify(saveData));
+    }
+
+    function loadGame() {
+        const savedData = localStorage.getItem('gamblersLifeSaveData');
+        if (savedData) {
+            const data = JSON.parse(savedData);
+            playerMoney = data.money || 0;
+            if (data.earnerLevels && data.earnerLevels.length === clicker.earners.length) {
+                clicker.earners.forEach((earner, index) => {
+                    earner.level = data.earnerLevels[index] || 0;
+                });
+            }
+        }
+    }
+
     // 2. 화면 전환 로직
     function showScreen(screenId) {
         screens.forEach(screen => screen.classList.remove('active'));
         document.getElementById(screenId).classList.add('active');
-        if (screenId === 'blackjack-game-screen' && blackjack.gameState !== 'betting') {
-            blackjack.nextRound(true);
+        
+        // [수정] 블랙잭 화면으로 전환 시, 항상 UI를 업데이트하여 베팅 버튼 상태를 갱신
+        if (screenId === 'blackjack-game-screen') {
+            if (blackjack.gameState !== 'betting') {
+                blackjack.nextRound(true);
+            } else {
+                blackjack.updateGameUI();
+            }
         }
     }
     function updateWalletUI() {
@@ -163,18 +191,25 @@
             { id: 'casino', name: '사설 카지노', level: 0, baseCost: 1400000, mps: 7800 },
         ],
         init() {
-            this.coinButton.addEventListener('click', () => { playerMoney++; updateWalletUI(); this.updateUpgradesUI(); });
-            setInterval(() => this.runAutomation(), 1000);
+            this.coinButton.addEventListener('click', () => { playerMoney++; updateWalletUI(); this.updateUpgradesUI(); saveGame(); });
+            // [수정] UI 업데이트 간격을 0.2초(200ms)로 변경
+            setInterval(() => this.runAutomation(), 200);
             this.renderUpgrades();
         },
         runAutomation() {
             const totalMps = this.earners.reduce((total, earner) => total + (earner.level * earner.mps), 0);
-            if (totalMps > 0) { playerMoney += totalMps; updateWalletUI(); this.updateUpgradesUI(); }
+            if (totalMps > 0) {
+                // [수정] 0.2초마다 실행되므로, 초당 수익의 1/5만 더함
+                playerMoney += totalMps / 5;
+                updateWalletUI();
+                this.updateUpgradesUI();
+                saveGame();
+            }
         },
         buyEarner(earnerId) {
             const earner = this.earners.find(e => e.id === earnerId);
             const cost = this.getEarnerCost(earner);
-            if (playerMoney >= cost) { playerMoney -= cost; earner.level++; this.updateUpgradesUI(); }
+            if (playerMoney >= cost) { playerMoney -= cost; earner.level++; this.updateUpgradesUI(); saveGame(); }
         },
         getEarnerCost(earner) { return Math.floor(earner.baseCost * Math.pow(1.15, earner.level)); },
         renderUpgrades() {
@@ -199,6 +234,7 @@
     
     // --- 블랙잭 게임 로직 (고급 버전) ---
     const blackjack = {
+        // (내부 로직은 이전과 동일하되, 돈이 변경되는 부분에 saveGame() 호출 추가)
         dealerScoreEl: document.getElementById('dealer-score'), playerScoreEl: document.getElementById('player-score'), dealerCardsEl: document.getElementById('dealer-cards'), playerCardsEl: document.getElementById('player-cards'), messageEl: document.getElementById('message-area'), currentBetEl: document.getElementById('current-bet'),
         bettingControls: document.getElementById('betting-controls'), actionControls: document.getElementById('action-controls'), resultControls: document.getElementById('result-controls'),
         chips: document.querySelectorAll('#blackjack-game-screen .chip'), dealBtn: document.getElementById('deal-btn'), clearBtn: document.getElementById('clear-btn'), hitBtn: document.getElementById('hit-btn'), standBtn: document.getElementById('stand-btn'), nextRoundBtn: document.getElementById('next-round-btn'),
@@ -206,13 +242,13 @@
         deck: [], playerHand: [], dealerHand: [], currentBet: 0, gameState: 'betting', isAnimating: false, dealerInterval: null,
         init() { this.chips.forEach(c=>c.addEventListener('click', ()=>this.placeBet(parseInt(c.dataset.value)))); this.clearBtn.addEventListener('click', ()=>this.clearBet()); this.dealBtn.addEventListener('click', ()=>this.dealCards()); this.hitBtn.addEventListener('click', ()=>this.hit()); this.standBtn.addEventListener('click', ()=>this.stand()); this.nextRoundBtn.addEventListener('click', ()=>this.nextRound()); },
         updateGameUI() { updateWalletUI(); this.currentBetEl.textContent = `$${this.currentBet}`; this.playerScoreEl.textContent = this.calculateScore(this.playerHand); this.dealerScoreEl.textContent = (this.gameState === 'playing' && this.dealerHand.length > 0) ? this.getCardScore(this.dealerHand[0]) : this.calculateScore(this.dealerHand); this.bettingControls.style.display = 'none'; this.actionControls.style.display = 'none'; this.resultControls.style.display = 'none'; if (this.gameState === 'betting') this.bettingControls.style.display = 'flex'; else if (this.gameState === 'playing') this.actionControls.style.display = 'flex'; else if (this.gameState === 'result') this.resultControls.style.display = 'flex'; if (this.gameState === 'betting') { this.dealBtn.disabled = this.currentBet === 0; this.chips.forEach(c => c.disabled = (parseInt(c.dataset.value) > playerMoney)); } if (this.gameState === 'result') { this.nextRoundBtn.textContent = (playerMoney === 0 && this.currentBet === 0) ? 'Restart Game' : 'Next Round'; } },
-        placeBet(amount) { if (this.gameState === 'betting' && playerMoney >= amount) { playerMoney -= amount; this.currentBet += amount; this.updateGameUI(); } },
-        clearBet() { if (this.gameState === 'betting') { playerMoney += this.currentBet; this.currentBet = 0; this.updateGameUI(); } },
+        placeBet(amount) { if (this.gameState === 'betting' && playerMoney >= amount) { playerMoney -= amount; this.currentBet += amount; this.updateGameUI(); saveGame(); } },
+        clearBet() { if (this.gameState === 'betting') { playerMoney += this.currentBet; this.currentBet = 0; this.updateGameUI(); saveGame(); } },
         dealCards() { if (this.currentBet === 0 || this.isAnimating) return; this.gameState = 'playing'; this.playerHand = []; this.dealerHand = []; this.playerCardsEl.innerHTML = ''; this.dealerCardsEl.innerHTML = ''; this.messageEl.textContent = ''; this.deck = []; for (let s of this.SUITS) for (let v of this.VALUES) this.deck.push({suit:s, value:v}); for (let i = this.deck.length - 1; i > 0; i--) { const j = Math.floor(Math.random()*(i+1)); [this.deck[i], this.deck[j]] = [this.deck[j], this.deck[i]]; } this.updateGameUI(); this.animateDealingSequence(); },
         async animateDealingSequence() { this.isAnimating = true; try { await this.dealOneCard(this.playerHand, this.playerCardsEl, false); await this.dealOneCard(this.dealerHand, this.dealerCardsEl, false); await this.dealOneCard(this.playerHand, this.playerCardsEl, false); await this.dealOneCard(this.dealerHand, this.dealerCardsEl, true); if (this.calculateScore(this.playerHand) === 21) { this.stand(); } } finally { this.isAnimating = false; } },
         async hit() { if (this.gameState !== 'playing' || this.isAnimating) return; this.isAnimating = true; await this.dealOneCard(this.playerHand, this.playerCardsEl, false); this.isAnimating = false; if (this.calculateScore(this.playerHand) > 21) { this.messageEl.textContent = '플레이어 버스트!'; this.stand(); } },
         stand() { if (this.gameState !== 'playing' || this.isAnimating) return; this.gameState = 'result'; const hiddenCardEl = this.dealerCardsEl.querySelector('.card.hidden'); if (hiddenCardEl) { const card = this.dealerHand[1]; hiddenCardEl.classList.remove('hidden'); hiddenCardEl.innerHTML = `<span class="suit-top">${card.suit}</span><span class="value">${card.value}</span><span class="suit-bottom">${card.suit}</span>`; if (['♥', '♦'].includes(card.suit)) hiddenCardEl.classList.add('red'); } this.updateGameUI(); this.dealerInterval = setInterval(() => { if (this.calculateScore(this.dealerHand) < 17) { this.isAnimating = true; this.dealOneCard(this.dealerHand, this.dealerCardsEl, false).then(() => this.isAnimating = false); } else { clearInterval(this.dealerInterval); this.determineWinner(); } }, 1000); },
-        determineWinner() { const pScore = this.calculateScore(this.playerHand); const dScore = this.calculateScore(this.dealerHand); let msg = ''; if (pScore > 21) { msg = '딜러 승리!'; } else if (dScore > 21 || pScore > dScore) { if (pScore === 21 && this.playerHand.length === 2) { msg = '블랙잭! 플레이어 승리!'; playerMoney += Math.floor(this.currentBet + (this.currentBet * 1.5)); } else { msg = '플레이어 승리!'; playerMoney += this.currentBet * 2; } } else if (pScore < dScore) { msg = '딜러 승리!'; } else { msg = '무승부 (Push)!'; playerMoney += this.currentBet; } this.messageEl.textContent = msg; this.currentBet = 0; this.updateGameUI(); },
+        determineWinner() { const pScore = this.calculateScore(this.playerHand); const dScore = this.calculateScore(this.dealerHand); let msg = ''; if (pScore > 21) { msg = '딜러 승리!'; } else if (dScore > 21 || pScore > dScore) { if (pScore === 21 && this.playerHand.length === 2) { msg = '블랙잭! 플레이어 승리!'; playerMoney += Math.floor(this.currentBet + (this.currentBet * 1.5)); } else { msg = '플레이어 승리!'; playerMoney += this.currentBet * 2; } } else if (pScore < dScore) { msg = '딜러 승리!'; } else { msg = '무승부 (Push)!'; playerMoney += this.currentBet; } this.messageEl.textContent = msg; this.currentBet = 0; this.updateGameUI(); saveGame(); },
         nextRound(forceReset = false) { if (this.isAnimating && !forceReset) return; clearInterval(this.dealerInterval); if (playerMoney === 0 && this.currentBet === 0) playerMoney = 0; if (forceReset && this.currentBet > 0) { playerMoney += this.currentBet; this.currentBet = 0; } this.isAnimating = false; this.gameState = 'betting'; this.playerHand = []; this.dealerHand = []; this.playerCardsEl.innerHTML = ''; this.dealerCardsEl.innerHTML = ''; this.messageEl.textContent = '베팅을 하세요'; if (playerMoney < 10 && this.currentBet === 0) { this.messageEl.textContent = '자금이 부족합니다!'; } this.updateGameUI(); },
         dealOneCard(hand, element, isHidden) { return new Promise(resolve => { setTimeout(() => { const card = this.deck.pop(); if (card) { hand.push(card); this.renderCard(card, element, isHidden); this.updateGameUI(); } resolve(); }, 300); }); },
         renderCard(card, element, isHidden = false) { const cDiv = document.createElement('div'); cDiv.className = `card deal-animation-start ${['♥', '♦'].includes(card.suit) ? 'red' : ''}`; if (isHidden) { cDiv.classList.add('hidden'); cDiv.dataset.value = card.value; cDiv.dataset.suit = card.suit; } else { cDiv.innerHTML = `<span class="suit-top">${card.suit}</span><span class="value">${card.value}</span><span class="suit-bottom">${card.suit}</span>`; } element.appendChild(cDiv); setTimeout(() => cDiv.classList.remove('deal-animation-start'), 10); },
@@ -221,7 +257,13 @@
     };
     
     // --- 게임 초기화 ---
-    window.onload = () => { updateWalletUI(); clicker.init(); blackjack.init(); blackjack.updateGameUI(); };
+    window.onload = () => {
+        loadGame();
+        updateWalletUI();
+        clicker.init();
+        blackjack.init();
+        blackjack.updateGameUI();
+    };
 </script>
 </body>
 </html>
